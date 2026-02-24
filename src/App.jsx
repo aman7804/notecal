@@ -31,41 +31,34 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [loaded, setLoaded] = useState(false);
-  const [view, setView] = useState("week"); // "month" | "week"
+  const [weeks, setWeeks] = useState([]);
 
-  // Load notes
   useEffect(() => {
     const saved = localStorage.getItem("calendar-notes");
     if (saved) setNotes(JSON.parse(saved));
-    setLoaded(true);
   }, []);
 
-  // Save notes safely
   useEffect(() => {
-    if (!loaded) return;
     localStorage.setItem("calendar-notes", JSON.stringify(notes));
-  }, [notes, loaded]);
+  }, [notes]);
 
-  const startOfMonth = currentMonth.startOf("month");
-  const daysInMonth = currentMonth.daysInMonth();
-  const startDay = startOfMonth.day();
+  useEffect(() => {
+    setWeeks(generateCalendar(currentMonth));
+  }, [currentMonth]);
 
-  let days = [];
+  function generateCalendar(month) {
+    const monthStart = month.startOf("month");
+    const calendarStart = monthStart.subtract(monthStart.day(), "day");
 
-  if (view === "month") {
-    const startOfMonth = currentMonth.startOf("month");
-    const daysInMonth = currentMonth.daysInMonth();
-    const startDay = startOfMonth.day();
-
-    for (let i = 0; i < startDay; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) days.push(currentMonth.date(i));
-  } else {
-    const startOfWeek = currentMonth.startOf("week");
-
-    for (let i = 0; i < 7; i++) {
-      days.push(startOfWeek.add(i, "day"));
+    const days = [];
+    for (let i = 0; i < 42; i++) {
+      const day = calendarStart.add(i, "day");
+      days.push({
+        date: day,
+        isCurrentMonth: day.month() === month.month(),
+      });
     }
+    return days;
   }
 
   const openModal = (date) => {
@@ -75,131 +68,87 @@ export default function App() {
 
   const handleNoteChange = (e) => {
     if (!selectedDate) return;
-    const value = e.target.value;
-    setNotes((prev) => ({ ...prev, [selectedDate]: value }));
+    setNotes((prev) => ({ ...prev, [selectedDate]: e.target.value }));
   };
 
-  const handlePrev = () => {
-    setCurrentMonth((prev) =>
-      view === "month" ? prev.subtract(1, "month") : prev.subtract(1, "week"),
-    );
-  };
+  const handlePrev = () => setCurrentMonth((prev) => prev.subtract(1, "month"));
 
-  const handleNext = () => {
-    setCurrentMonth((prev) =>
-      view === "month" ? prev.add(1, "month") : prev.add(1, "week"),
-    );
-  };
-  const goToToday = () => {
-    setCurrentMonth(dayjs());
-  };
+  const handleNext = () => setCurrentMonth((prev) => prev.add(1, "month"));
 
   return (
-    <Box sx={{ height: "100vh", p: 2 }}>
+    <Box
+      sx={{
+        height: "100vh",
+        display: "grid",
+        gridTemplateRows: "auto auto 1fr",
+        px: 2,
+        py: 1,
+        gap: 1,
+      }}
+    >
       {/* HEADER */}
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={2}
-      >
-        <Box
-          display="flex"
-          alignItems="center"
-          gap={1}
-          sx={{ cursor: "pointer" }}
-          onClick={goToToday}
-        >
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        {/* logo */}
+        {/* <Box display="flex" alignItems="center" gap={1}>
           <Logo size={36} />
           <Typography variant="h5" fontWeight="bold">
             NoteCal
           </Typography>
-        </Box>
+        </Box> */}
 
-        {/* LEFT: DATE + ARROWS */}
         <Box display="flex" alignItems="center" gap={1}>
-          <Typography variant="h4" sx={{ width: 255, textAlign: "center" }}>
-            {currentMonth.format("MMMM YYYY")}
-          </Typography>
           <IconButton onClick={handlePrev}>{"<"}</IconButton>
           <IconButton onClick={handleNext}>{">"}</IconButton>
+          <Typography variant="h5">
+            {currentMonth.format("MMMM YYYY")}
+          </Typography>
         </Box>
+      </Box>
 
-        {/* RIGHT: VIEW SWITCH */}
-        <Box>
-          <IconButton
-            color={view === "week" ? "primary" : "default"}
-            onClick={() => setView("week")}
-          >
-            W
-          </IconButton>
-          <IconButton
-            color={view === "month" ? "primary" : "default"}
-            onClick={() => setView("month")}
-          >
-            M
-          </IconButton>
-        </Box>
+      {/* WEEKDAYS */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          fontSize: "10px",
+        }}
+      >
+        {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => (
+          <Box key={d} sx={{ textAlign: "center", fontWeight: "bold" }}>
+            {d}
+          </Box>
+        ))}
       </Box>
 
       {/* CALENDAR GRID */}
       <Box
         sx={{
-          height: "calc(100vh - 120px)",
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gridTemplateRows:
-            view === "month" ? "auto repeat(6, 1fr)" : "auto repeat(1, 1fr)",
-
-          gap: 1,
+          gridTemplateRows: "repeat(6, 1fr)",
+          gap: 0.1,
         }}
       >
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <Box key={d} sx={{ textAlign: "center", fontWeight: "bold" }}>
-            {d}
-          </Box>
-        ))}
-
-        {days.map((day, index) => {
-          const key = day ? day.format("DD-MM-YYYY") : index;
-          const note = day ? notes[day.format("DD-MM-YYYY")] : "";
-          const isToday = day && day.isSame(dayjs(), "day");
-
-          return (
-            <Paper
-              key={key}
-              onClick={() => day && openModal(day)}
+        {weeks.map((day, i) => (
+          <Paper
+            key={i}
+            sx={{
+              p: 1,
+              cursor: "pointer",
+              opacity: day.isCurrentMonth ? 1 : 0.4,
+            }}
+            onClick={() => openModal(day.date)}
+          >
+            <Typography
               sx={{
-                p: 1,
-                cursor: day ? "pointer" : "default",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                border: isToday ? "2px solid" : "1px solid transparent",
-                borderColor: isToday ? "primary.main" : "transparent",
+                fontSize: "12px",
+                // fontWeight: "bold",
               }}
             >
-              {day && (
-                <>
-                  <Typography variant="caption">{day.date()}</Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      mt: 1,
-                      fontSize: 13,
-                      overflow: "hidden",
-                      whiteSpace: "pre-line", // 👈 keeps line breaks
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {note}
-                  </Typography>
-                </>
-              )}
-            </Paper>
-          );
-        })}
+              {day.date.date()}
+            </Typography>
+          </Paper>
+        ))}
       </Box>
 
       {/* MODAL */}
@@ -215,11 +164,16 @@ export default function App() {
           <Box sx={{ mt: 2, overflowY: "auto" }}>
             <TextField
               fullWidth
+              autoFocus
+              variant="standard"
               multiline
               minRows={5}
               value={selectedDate ? notes[selectedDate] || "" : ""}
               onChange={handleNoteChange}
               placeholder="Write your brilliant life plans..."
+              InputProps={{
+                disableUnderline: true,
+              }}
             />
           </Box>
         </Box>
