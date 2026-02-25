@@ -6,6 +6,9 @@ import {
   Modal,
   TextField,
   IconButton,
+  Button,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
@@ -31,7 +34,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [weeks, setWeeks] = useState([]);
+  const [dates, setDates] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("calendar-notes");
@@ -43,8 +46,12 @@ export default function App() {
   }, [notes]);
 
   useEffect(() => {
-    setWeeks(generateCalendar(currentMonth));
+    setDates(generateCalendar(currentMonth));
   }, [currentMonth]);
+
+  function goToday() {
+    setCurrentMonth(dayjs());
+  }
 
   function generateCalendar(month) {
     const monthStart = month.startOf("month");
@@ -60,6 +67,9 @@ export default function App() {
     }
     return days;
   }
+  useEffect(() => {
+    console.log(currentMonth.format("MM-YYYY"));
+  }, [currentMonth]);
 
   const openModal = (date) => {
     setSelectedDate(date.format("DD-MM-YYYY"));
@@ -74,7 +84,8 @@ export default function App() {
   const handlePrev = () => setCurrentMonth((prev) => prev.subtract(1, "month"));
 
   const handleNext = () => setCurrentMonth((prev) => prev.add(1, "month"));
-
+  const [locked, setLocked] = useState(false);
+  const [view, setView] = useState("month");
   return (
     <Box
       sx={{
@@ -103,6 +114,39 @@ export default function App() {
             {currentMonth.format("MMMM YYYY")}
           </Typography>
         </Box>
+        <Box>
+          <Button
+            variant="contained"
+            onClick={goToday}
+            sx={{
+              borderRadius: "999px",
+              px: 3,
+              textTransform: "none",
+            }}
+          >
+            Today
+          </Button>
+          <Select
+            value={view}
+            onChange={(e) => setView(e.target.value)}
+            sx={{
+              borderRadius: "25px",
+              height: "35px",
+              width: "120",
+              minWidth: "140",
+              px: 2,
+              "& .MuiSelect-select": { py: 1, px: 1 },
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderRadius: "25px",
+              },
+            }}
+          >
+            <MenuItem value="day">Day</MenuItem>
+            <MenuItem value="threeDay">3-Day</MenuItem>
+            <MenuItem value="week">Week</MenuItem>
+            <MenuItem value="month">Month</MenuItem>
+          </Select>
+        </Box>
       </Box>
 
       {/* WEEKDAYS */}
@@ -128,8 +172,17 @@ export default function App() {
           gridTemplateRows: "repeat(6, 1fr)",
           gap: 0.1,
         }}
+        onWheel={(e) => {
+          if (locked) return;
+          setLocked(true);
+
+          if (e.deltaY > 0) handleNext();
+          else handlePrev();
+
+          setTimeout(() => setLocked(false), 1000);
+        }}
       >
-        {weeks.map((day, i) => (
+        {dates.map((day, i) => (
           <Paper
             key={i}
             sx={{
@@ -140,12 +193,30 @@ export default function App() {
             onClick={() => openModal(day.date)}
           >
             <Typography
+              component="div"
               sx={{
                 fontSize: "12px",
-                // fontWeight: "bold",
               }}
             >
-              {day.date.date()}
+              {day.date.isSame(dayjs(), "day") ? (
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    backgroundColor: "primary.main",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {day.date.date()}
+                </Box>
+              ) : (
+                day.date.date()
+              )}
             </Typography>
           </Paper>
         ))}
