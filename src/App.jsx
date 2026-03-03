@@ -81,11 +81,15 @@ export default function App() {
     setNotes((prev) => ({ ...prev, [selectedDate]: e.target.value }));
   };
 
-  const handlePrev = () => setCurrentMonth((prev) => prev.subtract(1, "month"));
-
-  const handleNext = () => setCurrentMonth((prev) => prev.add(1, "month"));
+  const handlePrev = () => {
+    
+    setCurrentMonth((prev) => prev.subtract(1, "month"));
+  };
+  const handleNext = () => {
+    setCurrentMonth((prev) => prev.add(1, "month"));
+  };
   const [locked, setLocked] = useState(false);
-  const [view, setView] = useState("month");
+  // const [view, setView] = useState("month");
   return (
     <Box
       sx={{
@@ -126,7 +130,7 @@ export default function App() {
           >
             Today
           </Button>
-          <Select
+          {/* <Select
             value={view}
             onChange={(e) => setView(e.target.value)}
             sx={{
@@ -145,7 +149,7 @@ export default function App() {
             <MenuItem value="threeDay">3-Day</MenuItem>
             <MenuItem value="week">Week</MenuItem>
             <MenuItem value="month">Month</MenuItem>
-          </Select>
+          </Select> */}
         </Box>
       </Box>
 
