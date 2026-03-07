@@ -25,6 +25,27 @@
             return Ok(result);
         }
 
+        // GET api/notes/search?q=meeting
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string q)
+        {
+            if (string.IsNullOrWhiteSpace(q)) return Ok(new List<SearchResultDto>());
+
+            var results = await db.Notes
+                .Include(n => n.DayNotes)
+                .Where(n => n.Title.Contains(q) || n.Text.Contains(q))
+                .OrderByDescending(n => n.DayNotes.Date)
+                .Select(n => new SearchResultDto(
+                    n.Id,
+                    n.Title,
+                    n.Text,
+                    n.DayNotes.Date.ToString("dd-MM-yyyy")
+                ))
+                .ToListAsync();
+
+            return Ok(results);
+        }
+
         // POST api/notes/06-03-2026
         [HttpPost("{date}")]
         public async Task<IActionResult> AddNote(string date, [FromBody] NotePayload payload)
@@ -95,13 +116,11 @@
             var note = day.Notes.FirstOrDefault(n => n.Id == noteId);
             if (note == null) return NotFound("Note not found.");
 
-            // Don't allow deleting the last note
             if (day.Notes.Count == 1)
                 return BadRequest("Cannot delete the only note for a day.");
 
             day.Notes.Remove(note);
 
-            // Clean up DayNotes row if no notes remain (edge case)
             if (day.Notes.Count == 0)
                 db.DayNotes.Remove(day);
 
@@ -113,4 +132,5 @@
     // DTOs
     public record NoteDto(int Id, string Title, string Text);
     public record NotePayload(string? Title, string? Text);
+    public record SearchResultDto(int Id, string Title, string Text, string Date);
 }

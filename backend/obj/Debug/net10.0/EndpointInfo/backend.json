@@ -72,6 +72,27 @@
         }
       }
     },
+    "/api/Notes/search": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Notes/{date}/{noteId}": {
       "put": {
         "tags": [

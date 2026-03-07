@@ -84,6 +84,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "backend.Controllers.NotesController",
+    "Method": "Search",
+    "RelativePath": "api/Notes/search",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "q",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "backend.Controllers.WeatherForecastController",
     "Method": "Get",
     "RelativePath": "WeatherForecast",
