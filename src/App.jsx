@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Paper,
@@ -16,7 +16,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import axios from "axios";
 import dayjs from "dayjs";
 
-const API = "http://localhost:5191/api/notes";
+const noteApi = import.meta.env.VITE_NOTE_API;
 
 const modalStyle = {
   position: "absolute",
@@ -35,15 +35,31 @@ const modalStyle = {
 };
 
 export default function App() {
-  const [notesByDate, setNotesByDate] = useState({}); // local cache: { "DD-MM-YYYY": [{id, title, text}] }
+  const [notesByDate, setNotesByDate] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
+  const [localNote, setLocalNote] = useState({ title: "", text: "" });
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [dates, setDates] = useState([]);
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [saveTimer, setSaveTimer] = useState(null);
+
+  // Refs so saveNote always reads latest values — never stale
+  const localNoteRef = useRef(localNote);
+  const selectedDateRef = useRef(selectedDate);
+  const selectedNoteIdRef = useRef(selectedNoteId);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    localNoteRef.current = localNote;
+  }, [localNote]);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
+  useEffect(() => {
+    selectedNoteIdRef.current = selectedNoteId;
+  }, [selectedNoteId]);
 
   useEffect(() => {
     setDates(generateCalendar(currentMonth));
@@ -64,10 +80,10 @@ export default function App() {
   const handleNext = () => setCurrentMonth((p) => p.add(1, "month"));
   const goToday = () => setCurrentMonth(dayjs());
 
-  // --- POST: create a new note ---
+  // --- POST ---
   const createNote = async (date, title = "", text = "") => {
     try {
-      const { data: newNote } = await axios.post(`${API}/${date}`, {
+      const { data: newNote } = await axios.post(`${noteApi}/${date}`, {
         title,
         text,
       });
@@ -82,52 +98,69 @@ export default function App() {
     }
   };
 
-  // --- Fetch notes for a date from the backend ---
-  const fetchNotes = useCallback(async (date) => {
+  // --- GET ---
+  const fetchNotes = async (date) => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/${date}`);
-
+      const { data } = await axios.get(`${noteApi}/${date}`);
       if (data.length > 0) {
         setNotesByDate((prev) => ({ ...prev, [date]: data }));
         setSelectedNoteId(data[0].id);
+        setLocalNote({ title: data[0].title, text: data[0].text });
       } else {
-        // No notes yet — create the first one
         const created = await createNote(date);
-        if (created) setSelectedNoteId(created.id);
+        if (created) {
+          setSelectedNoteId(created.id);
+          setLocalNote({ title: "", text: "" });
+        }
       }
     } catch (err) {
       console.error("Failed to fetch notes:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // --- PUT: save note changes (debounced 600ms) ---
-  const saveNote = useCallback((date, noteId, title, text) => {
-    setSaveTimer((prev) => {
-      if (prev) clearTimeout(prev);
-      return setTimeout(async () => {
-        try {
-          await axios.put(`${API}/${date}/${noteId}`, { title, text });
-        } catch (err) {
-          console.error("Failed to save note:", err);
-        }
-      }, 600);
-    });
-  }, []);
+  // --- PUT: reads from refs — always fresh, no stale closure ---
+  const saveNote = async () => {
+    const date = selectedDateRef.current;
+    const noteId = selectedNoteIdRef.current;
+    const note = localNoteRef.current;
+    if (!date || !noteId) return;
+    try {
+      await axios.put(`${noteApi}/${date}/${noteId}`, note);
+      setNotesByDate((prev) => ({
+        ...prev,
+        [date]: (prev[date] || []).map((n) =>
+          n.id === noteId ? { ...n, ...note } : n,
+        ),
+      }));
+    } catch (err) {
+      console.error("Failed to save note:", err);
+    }
+  };
 
-  // --- DELETE: remove a note ---
+  // --- Typing: only touches localNote state (zero extra re-renders elsewhere) ---
+  const handleNoteChange = (field, value) => {
+    setLocalNote((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // --- Tab switch: save current, then load new ---
+  const handleTabSwitch = async (note) => {
+    await saveNote();
+    setSelectedNoteId(note.id);
+    setLocalNote({ title: note.title, text: note.text });
+  };
+
+  // --- DELETE ---
   const deleteNote = async (noteId) => {
     try {
       const res = await axios
-        .delete(`${API}/${selectedDate}/${noteId}`)
+        .delete(`${noteApi}/${selectedDate}/${noteId}`)
         .catch((err) => err.response);
 
       if (res?.status === 400) {
-        // Backend blocked deleting the last note — clear its content instead
-        handleNoteChange("title", "", noteId);
-        handleNoteChange("text", "", noteId);
+        setLocalNote({ title: "", text: "" });
         return;
       }
 
@@ -137,27 +170,13 @@ export default function App() {
         );
         if (noteId === selectedNoteId && updated.length > 0) {
           setSelectedNoteId(updated[0].id);
+          setLocalNote({ title: updated[0].title, text: updated[0].text });
         }
         return { ...prev, [selectedDate]: updated };
       });
     } catch (err) {
       console.error("Failed to delete note:", err);
     }
-  };
-
-  // --- Update note locally + debounce save to backend ---
-  const handleNoteChange = (field, value, overrideNoteId = null) => {
-    const noteId = overrideNoteId ?? selectedNoteId;
-    if (!selectedDate || !noteId) return;
-
-    setNotesByDate((prev) => {
-      const updated = (prev[selectedDate] || []).map((n) =>
-        n.id === noteId ? { ...n, [field]: value } : n,
-      );
-      const note = updated.find((n) => n.id === noteId);
-      if (note) saveNote(selectedDate, noteId, note.title, note.text);
-      return { ...prev, [selectedDate]: updated };
-    });
   };
 
   // --- Open modal ---
@@ -168,14 +187,23 @@ export default function App() {
     await fetchNotes(fmt);
   };
 
-  // --- Add note button ---
+  // --- Close modal ---
+  const closeModal = async () => {
+    await saveNote();
+    setModalOpen(false);
+  };
+
+  // --- Add note ---
   const handleAddNote = async () => {
+    await saveNote(); // save current before switching
     const created = await createNote(selectedDate);
-    if (created) setSelectedNoteId(created.id);
+    if (created) {
+      setSelectedNoteId(created.id);
+      setLocalNote({ title: "", text: "" });
+    }
   };
 
   const dayNotes = (selectedDate && notesByDate[selectedDate]) || [];
-  const currentNote = dayNotes.find((n) => n.id === selectedNoteId) || null;
 
   const getNoteCount = (date) => {
     const fmt = date.format("DD-MM-YYYY");
@@ -321,7 +349,7 @@ export default function App() {
       </Box>
 
       {/* MODAL */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <Modal open={modalOpen} onClose={closeModal}>
         <Box sx={modalStyle}>
           {/* Tabs row */}
           <Box
@@ -346,7 +374,7 @@ export default function App() {
             {dayNotes.map((note, idx) => (
               <Box
                 key={note.id}
-                onClick={() => setSelectedNoteId(note.id)}
+                onClick={() => handleTabSwitch(note)}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -375,7 +403,10 @@ export default function App() {
                   },
                 }}
               >
-                {note.title?.trim() || `Note ${idx + 1}`}
+                {/* Active tab shows live localNote title */}
+                {note.id === selectedNoteId
+                  ? localNote.title?.trim() || `Note ${idx + 1}`
+                  : note.title?.trim() || `Note ${idx + 1}`}
                 {dayNotes.length > 1 && (
                   <Box
                     component="span"
@@ -408,7 +439,7 @@ export default function App() {
             </Tooltip>
 
             <Box sx={{ ml: "auto", flexShrink: 0 }}>
-              <IconButton size="small" onClick={() => setModalOpen(false)}>
+              <IconButton size="small" onClick={closeModal}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </Box>
@@ -427,7 +458,7 @@ export default function App() {
             >
               <CircularProgress size={28} />
             </Box>
-          ) : currentNote ? (
+          ) : selectedNoteId ? (
             <Box
               sx={{
                 display: "flex",
@@ -442,7 +473,7 @@ export default function App() {
                 fullWidth
                 autoFocus
                 variant="standard"
-                value={currentNote.title}
+                value={localNote.title}
                 onChange={(e) => handleNoteChange("title", e.target.value)}
                 placeholder="Title"
                 InputProps={{ disableUnderline: true }}
@@ -454,7 +485,7 @@ export default function App() {
                   variant="standard"
                   multiline
                   minRows={6}
-                  value={currentNote.text}
+                  value={localNote.text}
                   onChange={(e) => handleNoteChange("text", e.target.value)}
                   placeholder="Write your brilliant life plans..."
                   InputProps={{ disableUnderline: true }}
@@ -481,7 +512,7 @@ export default function App() {
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => deleteNote(currentNote.id)}
+                      onClick={() => deleteNote(selectedNoteId)}
                     >
                       <DeleteOutlineIcon fontSize="small" />
                     </IconButton>
