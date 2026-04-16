@@ -151,10 +151,10 @@ D:\repos\noteCal\backend\obj\Debug\net10.0\staticwebassets.build.json.cache
 D:\repos\noteCal\backend\obj\Debug\net10.0\staticwebassets.development.json
 D:\repos\noteCal\backend\obj\Debug\net10.0\staticwebassets.build.endpoints.json
 D:\repos\noteCal\backend\obj\Debug\net10.0\swae.build.ex.cache
-D:\repos\noteCal\backend\obj\Debug\net10.0\staticwebassets.upToDateCheck.txt
 D:\repos\noteCal\backend\obj\Debug\net10.0\backend.csproj.Up2Date
 D:\repos\noteCal\backend\obj\Debug\net10.0\backend.dll
 D:\repos\noteCal\backend\obj\Debug\net10.0\refint\backend.dll
 D:\repos\noteCal\backend\obj\Debug\net10.0\backend.pdb
 D:\repos\noteCal\backend\obj\Debug\net10.0\backend.genruntimeconfig.cache
 D:\repos\noteCal\backend\obj\Debug\net10.0\ref\backend.dll
+D:\repos\noteCal\backend\bin\Debug\net10.0\dotnet-tools.json
