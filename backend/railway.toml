@@ -2,4 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "dotnet out/YourProjectName.dll"
+startCommand = "dotnet out/backend.dll"
