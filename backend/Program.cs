@@ -29,8 +29,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
 app.UseCors("MyPolicy");
+
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
