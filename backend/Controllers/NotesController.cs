@@ -15,115 +15,54 @@
             if (!DateOnly.TryParseExact(date, "dd-MM-yyyy", out var parsedDate))
                 return BadRequest("Invalid date format. Use DD-MM-YYYY.");
 
-            var day = await db.DayNotes
-                .Include(d => d.Notes)
-                .FirstOrDefaultAsync(d => d.Date == parsedDate);
+            var note = await db.Notes.FirstOrDefaultAsync(n => n.Date == parsedDate);
 
-            if (day == null) return Ok(new List<NoteDto>());
+            if (note == null) return Ok(null);
 
-            var result = day.Notes.Select(n => new NoteDto(n.Id, n.Title, n.Text));
-            return Ok(result);
+            return Ok(new NoteDto(note.Id, note.Title, note.Text));
         }
 
-        // GET api/notes/search?q=meeting
-        [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string q)
-        {
-            if (string.IsNullOrWhiteSpace(q)) return Ok(new List<SearchResultDto>());
-
-            var results = await db.Notes
-                .Include(n => n.DayNotes)
-                .Where(n => n.Title.Contains(q) || n.Text.Contains(q))
-                .OrderByDescending(n => n.DayNotes.Date)
-                .Select(n => new SearchResultDto(
-                    n.Id,
-                    n.Title,
-                    n.Text,
-                    n.DayNotes.Date.ToString("dd-MM-yyyy")
-                ))
-                .ToListAsync();
-
-            return Ok(results);
-        }
-
-        // POST api/notes/06-03-2026
-        [HttpPost("{date}")]
-        public async Task<IActionResult> AddNote(string date, [FromBody] NotePayload payload)
+        // PUT api/notes/06-03-2026  (upsert)
+        [HttpPut("{date}")]
+        public async Task<IActionResult> UpsertNote(string date, [FromBody] NotePayload payload)
         {
             if (!DateOnly.TryParseExact(date, "dd-MM-yyyy", out var parsedDate))
                 return BadRequest("Invalid date format. Use DD-MM-YYYY.");
 
-            var day = await db.DayNotes
-                .Include(d => d.Notes)
-                .FirstOrDefaultAsync(d => d.Date == parsedDate);
+            var note = await db.Notes.FirstOrDefaultAsync(n => n.Date == parsedDate);
 
-            if (day == null)
+            if (note == null)
             {
-                day = new DayNotes { Date = parsedDate };
-                db.DayNotes.Add(day);
+                note = new Note
+                {
+                    Date = parsedDate,
+                    Title = payload.Title ?? "",
+                    Text = payload.Text ?? "",
+                };
+                db.Notes.Add(note);
             }
-
-            var note = new Note
+            else
             {
-                Title = payload.Title ?? "",
-                Text = payload.Text ?? "",
-                DayNotes = day
-            };
-
-            day.Notes.Add(note);
-            await db.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetByDate), new { date },
-                new NoteDto(note.Id, note.Title, note.Text));
-        }
-
-        // PUT api/notes/06-03-2026/5
-        [HttpPut("{date}/{noteId}")]
-        public async Task<IActionResult> UpdateNote(string date, int noteId, [FromBody] NotePayload payload)
-        {
-            if (!DateOnly.TryParseExact(date, "dd-MM-yyyy", out var parsedDate))
-                return BadRequest("Invalid date format. Use DD-MM-YYYY.");
-
-            var day = await db.DayNotes
-                .Include(d => d.Notes)
-                .FirstOrDefaultAsync(d => d.Date == parsedDate);
-
-            if (day == null) return NotFound("No notes found for this date.");
-
-            var note = day.Notes.FirstOrDefault(n => n.Id == noteId);
-            if (note == null) return NotFound("Note not found.");
-
-            note.Title = payload.Title ?? note.Title;
-            note.Text = payload.Text ?? note.Text;
+                note.Title = payload.Title ?? note.Title;
+                note.Text = payload.Text ?? note.Text;
+            }
 
             await db.SaveChangesAsync();
             return Ok(new NoteDto(note.Id, note.Title, note.Text));
         }
 
-        // DELETE api/notes/06-03-2026/5
-        [HttpDelete("{date}/{noteId}")]
-        public async Task<IActionResult> DeleteNote(string date, int noteId)
+        // DELETE api/notes/06-03-2026
+        [HttpDelete("{date}")]
+        public async Task<IActionResult> DeleteNote(string date)
         {
             if (!DateOnly.TryParseExact(date, "dd-MM-yyyy", out var parsedDate))
                 return BadRequest("Invalid date format. Use DD-MM-YYYY.");
 
-            var day = await db.DayNotes
-                .Include(d => d.Notes)
-                .FirstOrDefaultAsync(d => d.Date == parsedDate);
+            var note = await db.Notes.FirstOrDefaultAsync(n => n.Date == parsedDate);
 
-            if (day == null) return NotFound("No notes found for this date.");
+            if (note == null) return NotFound("No note found for this date.");
 
-            var note = day.Notes.FirstOrDefault(n => n.Id == noteId);
-            if (note == null) return NotFound("Note not found.");
-
-            if (day.Notes.Count == 1)
-                return BadRequest("Cannot delete the only note for a day.");
-
-            day.Notes.Remove(note);
-
-            if (day.Notes.Count == 0)
-                db.DayNotes.Remove(day);
-
+            db.Notes.Remove(note);
             await db.SaveChangesAsync();
             return NoContent();
         }
@@ -132,5 +71,4 @@
     // DTOs
     public record NoteDto(int Id, string Title, string Text);
     public record NotePayload(string? Title, string? Text);
-    public record SearchResultDto(int Id, string Title, string Text, string Date);
 }
