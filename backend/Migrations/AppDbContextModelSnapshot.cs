@@ -21,7 +21,7 @@ namespace backend.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("backend.Model.Note", b =>
+            modelBuilder.Entity("backend.Model.DayNotes", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -31,6 +31,25 @@ namespace backend.Migrations
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
+
+                    b.ToTable("DayNotes");
+                });
+
+            modelBuilder.Entity("backend.Model.Note", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DayNotesId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -42,7 +61,25 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DayNotesId");
+
                     b.ToTable("Notes");
+                });
+
+            modelBuilder.Entity("backend.Model.Note", b =>
+                {
+                    b.HasOne("backend.Model.DayNotes", "DayNotes")
+                        .WithMany("Notes")
+                        .HasForeignKey("DayNotesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DayNotes");
+                });
+
+            modelBuilder.Entity("backend.Model.DayNotes", b =>
+                {
+                    b.Navigation("Notes");
                 });
 #pragma warning restore 612, 618
         }
