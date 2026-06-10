@@ -26,5 +26,6 @@ RUN dotnet publish "./backend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
 WORKDIR /app
+RUN apt-get update && apt-get install -y libgssapi-krb5-2
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "backend.dll"]

@@ -17,29 +17,8 @@
   },
   {
     "ContainingType": "backend.Controllers.NotesController",
-    "Method": "AddNote",
+    "Method": "UpsertNote",
     "RelativePath": "api/Notes/{date}",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "date",
-        "Type": "System.String",
-        "IsRequired": true
-      },
-      {
-        "Name": "payload",
-        "Type": "backend.Controllers.NotePayload",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "backend.Controllers.NotesController",
-    "Method": "UpdateNote",
-    "RelativePath": "api/Notes/{date}/{noteId}",
     "HttpMethod": "PUT",
     "IsController": true,
     "Order": 0,
@@ -47,11 +26,6 @@
       {
         "Name": "date",
         "Type": "System.String",
-        "IsRequired": true
-      },
-      {
-        "Name": "noteId",
-        "Type": "System.Int32",
         "IsRequired": true
       },
       {
@@ -65,7 +39,7 @@
   {
     "ContainingType": "backend.Controllers.NotesController",
     "Method": "DeleteNote",
-    "RelativePath": "api/Notes/{date}/{noteId}",
+    "RelativePath": "api/Notes/{date}",
     "HttpMethod": "DELETE",
     "IsController": true,
     "Order": 0,
@@ -74,27 +48,6 @@
         "Name": "date",
         "Type": "System.String",
         "IsRequired": true
-      },
-      {
-        "Name": "noteId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "backend.Controllers.NotesController",
-    "Method": "Search",
-    "RelativePath": "api/Notes/search",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "q",
-        "Type": "System.String",
-        "IsRequired": false
       }
     ],
     "ReturnTypes": []

@@ -14,7 +14,6 @@ import axios from "axios";
 import dayjs from "dayjs";
 
 const noteApi = import.meta.env.VITE_NOTE_API;
-
 const modalStyle = {
   position: "absolute",
   top: "50%",
@@ -32,10 +31,10 @@ const modalStyle = {
 };
 
 export default function App() {
-  const [notesByDate, setNotesByDate] = useState({});  // date -> { id, title, text } | null
+  const [notesByDate, setNotesByDate] = useState({}); // date -> { id, title, text } | null
   const [selectedDate, setSelectedDate] = useState(null);
   const [localNote, setLocalNote] = useState({ title: "", text: "" });
-  const [noteId, setNoteId] = useState(null);          // null = no note saved yet for this date
+  const [noteId, setNoteId] = useState(null); // null = no note saved yet for this date
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [dates, setDates] = useState([]);
@@ -71,7 +70,6 @@ export default function App() {
         setNoteId(data.id);
         setLocalNote({ title: data.title, text: data.text });
       } else {
-        // No note for this day yet — show blank fields, don't create anything
         setNotesByDate((prev) => ({ ...prev, [date]: null }));
         setNoteId(null);
         setLocalNote({ title: "", text: "" });
@@ -85,26 +83,12 @@ export default function App() {
 
   // --- SAVE (create or update depending on whether note exists) ---
   const saveNote = async (date, id, note) => {
-    const isEmpty = !note.title.trim() && !note.text.trim();
-    if (isEmpty) return;
+    if (!note.title.trim() && !note.text.trim()) return;
 
     try {
-      if (id) {
-        // Note already exists — update it
-        await axios.put(`${noteApi}/${date}`, note);
-        setNotesByDate((prev) => ({
-          ...prev,
-          [date]: { ...prev[date], ...note },
-        }));
-      } else {
-        // First save for this date — create it
-        const { data: created } = await axios.post(`${noteApi}/${date}`, note);
-        setNoteId(created.id);
-        setNotesByDate((prev) => ({
-          ...prev,
-          [date]: created,
-        }));
-      }
+      const { data } = await axios.put(`${noteApi}/${date}`, note);
+      setNoteId(data.id);
+      setNotesByDate((prev) => ({ ...prev, [date]: data }));
     } catch (err) {
       console.error("Failed to save note:", err);
     }
